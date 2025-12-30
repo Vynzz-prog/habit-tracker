@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Habix",
+    "slug": "habix",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "backgroundColor": "#0D0D0D",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D0D"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.vynzz.habix"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6a1b1834-6f09-4d51-a19a-5fe1ca7ecdcc"
+      }
+    }
+  }
+}
