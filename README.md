@@ -1,7 +1,7 @@
 ## Nama Aplikasi : Habix
 
 ## Deskripsi Aplikasi
-### Habix adalah aplikasi Android untuk membantu pengguna membangun dan memantau kebiasaan harian. Pengguna dapat menambahkan habit, menandai progres setiap hari, melihat statistik mingguan, serta arsip perkembangan habit. Aplikasi ini menggunakan penyimpanan lokal sehingga dapat digunakan secara offline dan mudah digunakan dalam aktivitas sehari-hari.
+Habix adalah aplikasi Android untuk membantu pengguna membangun dan memantau kebiasaan harian. Pengguna dapat menambahkan habit, menandai progres setiap hari, melihat statistik mingguan, serta arsip perkembangan habit. Aplikasi ini menggunakan penyimpanan lokal sehingga dapat digunakan secara offline dan mudah digunakan dalam aktivitas sehari-hari.
 
 
 ## Anggota Kelompok :
