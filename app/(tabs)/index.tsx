@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Text,
@@ -12,26 +13,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import HabitCard from "../../components/HabitCard";
 import { COLORS } from "../../constants/theme";
 
-type Habit = {
-  id: string;
-  title: string;
-};
-
-type CompletedMap = {
-  [key: string]: boolean;
-};
-
-type HistoryMap = {
-  [date: string]: CompletedMap;
-};
+type Habit = { id: string; title: string };
+type CompletedMap = { [key: string]: boolean };
+type HistoryMap = { [date: string]: CompletedMap };
 
 export default function HomeScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [newHabit, setNewHabit] = useState("");
   const [completed, setCompleted] = useState<CompletedMap>({});
   const [history, setHistory] = useState<HistoryMap>({});
-  const [lastReset, setLastReset] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [lastReset, setLastReset] = useState<string>("");
 
   // EDIT STATE
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -39,49 +30,45 @@ export default function HomeScreen() {
 
   const todayKey = new Date().toISOString().split("T")[0];
 
-  // -------------------------------------------
+  // ==================================================
   // LOAD DATA
-  // -------------------------------------------
+  // ==================================================
+  useFocusEffect(
+    useCallback(() => {
+      const load = async () => {
+        const h = await AsyncStorage.getItem("habits");
+        const c = await AsyncStorage.getItem("completed");
+        const hs = await AsyncStorage.getItem("history");
+        const r = await AsyncStorage.getItem("lastReset");
+
+        setHabits(h ? JSON.parse(h) : []);
+        setCompleted(c ? JSON.parse(c) : {});
+        setHistory(hs ? JSON.parse(hs) : {});
+
+        const today = new Date().toDateString();
+        if (!r) {
+          setLastReset(today);
+          await AsyncStorage.setItem("lastReset", today);
+        } else {
+          setLastReset(r);
+        }
+      };
+
+      load();
+    }, [])
+  );
+
+  // ==================================================
+  // RESET HARIAN
+  // ==================================================
   useEffect(() => {
-    const load = async () => {
-      const h = await AsyncStorage.getItem("habits");
-      const c = await AsyncStorage.getItem("completed");
-      const r = await AsyncStorage.getItem("lastReset");
-      const hs = await AsyncStorage.getItem("history");
-
-      if (h) setHabits(JSON.parse(h));
-      if (c) setCompleted(JSON.parse(c));
-      if (hs) setHistory(JSON.parse(hs));
-
-      const today = new Date().toDateString();
-
-      if (!r) {
-        setLastReset(today);
-        await AsyncStorage.setItem("lastReset", today);
-      } else {
-        setLastReset(r);
-      }
-
-      setIsLoaded(true);
-    };
-
-    load();
-  }, []);
-
-  // -------------------------------------------
-  // DAILY RESET
-  // -------------------------------------------
-  useEffect(() => {
-    if (!isLoaded || !lastReset) return;
+    if (!lastReset) return;
 
     const today = new Date().toDateString();
-
     if (today !== lastReset) {
-      setHistory((prev) => {
-        const updated = { ...prev, [todayKey]: completed };
-        AsyncStorage.setItem("history", JSON.stringify(updated));
-        return updated;
-      });
+      const newHistory = { ...history, [todayKey]: completed };
+      setHistory(newHistory);
+      AsyncStorage.setItem("history", JSON.stringify(newHistory));
 
       setCompleted({});
       AsyncStorage.setItem("completed", JSON.stringify({}));
@@ -89,102 +76,72 @@ export default function HomeScreen() {
       setLastReset(today);
       AsyncStorage.setItem("lastReset", today);
     }
-  }, [lastReset, isLoaded]);
+  }, [lastReset]);
 
-  // -------------------------------------------
-  // SAVE DATA
-  // -------------------------------------------
-  useEffect(() => {
-    if (!isLoaded) return;
-    AsyncStorage.setItem("habits", JSON.stringify(habits));
-  }, [habits, isLoaded]);
+  // ==================================================
+  // ADD HABIT
+  // ==================================================
+  const addHabit = async () => {
+    if (!newHabit.trim()) return;
 
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    AsyncStorage.setItem("completed", JSON.stringify(completed));
-    setHistory((prev) => {
-      const updated = { ...prev, [todayKey]: completed };
-      AsyncStorage.setItem("history", JSON.stringify(updated));
-      return updated;
-    });
-  }, [completed, isLoaded]);
-
-  // -------------------------------------------
-  // ACTIONS
-  // -------------------------------------------
-  const addHabit = () => {
-    if (newHabit.trim() === "") return;
-
-    setHabits((prev) => [
-      ...prev,
+    const newData = [
+      ...habits,
       { id: Date.now().toString(), title: newHabit },
-    ]);
+    ];
+
+    setHabits(newData);
+    await AsyncStorage.setItem("habits", JSON.stringify(newData));
     setNewHabit("");
   };
 
-  const toggleHabit = (id: string) => {
-    setCompleted((prev) => ({ ...prev, [id]: !prev[id] }));
+  // ==================================================
+  // TOGGLE
+  // ==================================================
+  const toggleHabit = async (id: string) => {
+    const updated = { ...completed, [id]: !completed[id] };
+    setCompleted(updated);
+    await AsyncStorage.setItem("completed", JSON.stringify(updated));
+
+    const newHistory = { ...history, [todayKey]: updated };
+    setHistory(newHistory);
+    await AsyncStorage.setItem("history", JSON.stringify(newHistory));
   };
 
+  // ==================================================
+  // DELETE
+  // ==================================================
   const deleteHabit = async (id: string) => {
-  
-  const newHabits = habits.filter((h) => h.id !== id);
-  setHabits(newHabits);
-  await AsyncStorage.setItem("habits", JSON.stringify(newHabits));
-
-  
-  const newCompleted = { ...completed };
-  delete newCompleted[id];
-  setCompleted(newCompleted);
-  await AsyncStorage.setItem("completed", JSON.stringify(newCompleted));
-
-
-  const newHistory: HistoryMap = {};
-
-  Object.entries(history).forEach(([date, dayData]) => {
-    const updatedDay = { ...dayData };
-    delete updatedDay[id];
-
-    if (Object.keys(updatedDay).length > 0) {
-      newHistory[date] = updatedDay;
-    }
-  });
-
-  setHistory(newHistory);
-  await AsyncStorage.setItem("history", JSON.stringify(newHistory));
-};
-
-
-  // EDIT
-  const startEdit = (habit: Habit) => {
-    setEditingHabit(habit);
-    setEditText(habit.title);
+    const newHabits = habits.filter((h) => h.id !== id);
+    setHabits(newHabits);
+    await AsyncStorage.setItem("habits", JSON.stringify(newHabits));
   };
 
-  const saveEdit = () => {
-    if (!editingHabit || editText.trim() === "") return;
+  // ==================================================
+  // SAVE EDIT
+  // ==================================================
+  const saveEdit = async () => {
+    if (!editingHabit || !editText.trim()) return;
 
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id === editingHabit.id ? { ...h, title: editText } : h
-      )
+    const updated = habits.map((h) =>
+      h.id === editingHabit.id ? { ...h, title: editText } : h
     );
+
+    setHabits(updated);
+    await AsyncStorage.setItem("habits", JSON.stringify(updated));
+
     setEditingHabit(null);
+    setEditText("");
   };
 
-  // -------------------------------------------
-  // PROGRESS
-  // -------------------------------------------
+  // ==================================================
+  // UI
+  // ==================================================
   const total = habits.length;
   const done = Object.values(completed).filter(Boolean).length;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
 
-  // -------------------------------------------
-  // UI
-  // -------------------------------------------
   return (
-    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
       <View style={{ flex: 1, padding: 20 }}>
         <Text style={{ color: COLORS.gold, fontSize: 28, fontWeight: "bold" }}>
           Habit Saya
@@ -200,28 +157,29 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <HabitCard
               item={item}
-              completed={completed[item.id]}
+              completed={!!completed[item.id]}
               onToggle={() => toggleHabit(item.id)}
               onDelete={() => deleteHabit(item.id)}
-              onEdit={() => startEdit(item)}
+              onEdit={() => {
+                setEditingHabit(item);
+                setEditText(item.title);
+              }}
             />
           )}
         />
 
-        {/* INPUT */}
-        <View
-          style={{
-            position: "absolute",
-            bottom: 110,
-            left: 20,
-            right: 20,
-            backgroundColor: COLORS.card,
-            borderRadius: 12,
-            padding: 12,
-            borderWidth: 1,
-            borderColor: COLORS.gold,
-          }}
-        >
+        {/* INPUT TAMBAH */}
+        <View style={{
+          position: "absolute",
+          bottom: 110,
+          left: 20,
+          right: 20,
+          backgroundColor: COLORS.card,
+          borderRadius: 12,
+          padding: 12,
+          borderWidth: 1,
+          borderColor: COLORS.gold,
+        }}>
           <TextInput
             value={newHabit}
             onChangeText={setNewHabit}
@@ -249,7 +207,7 @@ export default function HomeScreen() {
           <Ionicons name="add" size={32} color={COLORS.background} />
         </TouchableOpacity>
 
-        {/* EDIT MODAL */}
+        {/* 🔥 EDIT MODAL */}
         {editingHabit && (
           <View
             style={{

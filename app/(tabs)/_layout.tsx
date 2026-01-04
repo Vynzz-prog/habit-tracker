@@ -6,7 +6,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false, // MATIKAN HEADER DEFAULT AGAR (tabs) HILANG
+        headerShown: false, 
         tabBarStyle: {
           backgroundColor: COLORS.background,
           borderTopColor: COLORS.gold,

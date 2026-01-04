@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import BarChart from "../../components/BarChart";
 import { COLORS } from "../../constants/theme";
 
@@ -14,144 +16,135 @@ export default function StatsScreen() {
   const [history, setHistory] = useState<HistoryMap>({});
   const [habits, setHabits] = useState<Habit[]>([]);
   const [chartData, setChartData] = useState<number[]>([]);
-  const [maxVal, setMaxVal] = useState(1);
 
-  // --------------------------------------------------
-  // LOAD DATA
-  // --------------------------------------------------
-  useEffect(() => {
-    const load = async () => {
-      const h = await AsyncStorage.getItem("history");
-      const hb = await AsyncStorage.getItem("habits");
+  // LOAD DATA 
+  useFocusEffect(
+    useCallback(() => {
+      const load = async () => {
+        const h = await AsyncStorage.getItem("history");
+        const hb = await AsyncStorage.getItem("habits");
 
-      if (h) setHistory(JSON.parse(h));
-      if (hb) setHabits(JSON.parse(hb));
-    };
+        const parsedHistory: HistoryMap = h ? JSON.parse(h) : {};
+        const parsedHabits: Habit[] = hb ? JSON.parse(hb) : [];
 
-    load();
-  }, []);
+        setHistory(parsedHistory);
+        setHabits(parsedHabits);
 
-  // --------------------------------------------------
-  // BUILD WEEK (SUNDAY → SATURDAY)
-  // --------------------------------------------------
-  useEffect(() => {
-    if (habits.length === 0) return;
+        const totalHabits = parsedHabits.length;
 
-    const data: number[] = [];
+        // ===============================
+        // BUILD DATA MINGGU INI (PERSENTASE)
+        // ===============================
+        const data: number[] = [];
 
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday
+        const today = new Date();
+        const sunday = new Date(today);
+        sunday.setDate(today.getDate() - today.getDay());
 
-    
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - dayOfWeek);
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(sunday);
+          d.setDate(sunday.getDate() + i);
+          const key = d.toISOString().split("T")[0];
 
-    
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(sunday);
-      d.setDate(sunday.getDate() + i);
+          const done = Object.values(parsedHistory[key] || {}).filter(Boolean).length;
+          const percent = totalHabits === 0 ? 0 : done / totalHabits;
 
-      const key = d.toISOString().split("T")[0];
-      const dayData = history[key] || {};
-      const done = Object.values(dayData).filter(Boolean).length;
+          data.push(percent); 
+        }
 
-      data.push(done);
-    }
+        setChartData(data);
+      };
 
-    setChartData(data);
-    setMaxVal(Math.max(...data, 1));
-  }, [history, habits]);
+      load();
+    }, [])
+  );
 
-  // --------------------------------------------------
-  // UI
-  // --------------------------------------------------
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
-      contentContainerStyle={{ padding: 20 }}
-    >
-      <Text
-        style={{
-          color: COLORS.gold,
-          fontSize: 28,
-          fontWeight: "bold",
-          marginBottom: 20,
-        }}
-      >
-        Statistik Mingguan
-      </Text>
-
-      <Text style={{ color: COLORS.textSecondary, marginBottom: 10 }}>
-        Total Habit Aktif: {habits.length}
-      </Text>
-
-      {/* BAR CHART */}
-      <View
-        style={{
-          backgroundColor: COLORS.card,
-          padding: 20,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: COLORS.gold,
-        }}
-      >
-        <BarChart data={chartData} max={maxVal} />
-
-        {/* DAY LABELS */}
-        <View
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <Text
           style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginTop: 10,
-            paddingHorizontal: 5,
+            color: COLORS.gold,
+            fontSize: 28,
+            fontWeight: "bold",
+            marginBottom: 10,
           }}
         >
-          {DAY_LABELS.map((label, idx) => (
-            <Text key={idx} style={{ color: COLORS.goldLight }}>
-              {label}
-            </Text>
-          ))}
-        </View>
-      </View>
+          Statistik Mingguan
+        </Text>
 
-      {/* DETAIL */}
-      <Text
-        style={{
-          color: COLORS.gold,
-          fontSize: 20,
-          fontWeight: "bold",
-          marginTop: 30,
-          marginBottom: 10,
-        }}
-      >
-        Ringkasan Minggu Ini
-      </Text>
+        <Text style={{ color: COLORS.textSecondary, marginBottom: 10 }}>
+          Total Habit Aktif: {habits.length}
+        </Text>
 
-      {chartData.map((value, i) => {
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        const sunday = new Date(today);
-        sunday.setDate(today.getDate() - dayOfWeek);
+        {/* BAR CHART */}
+        <View
+          style={{
+            backgroundColor: COLORS.card,
+            padding: 20,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: COLORS.gold,
+          }}
+        >
+          <BarChart data={chartData} />
 
-        const d = new Date(sunday);
-        d.setDate(sunday.getDate() + i);
-        const textDate = d.toISOString().split("T")[0];
-
-        return (
+          {/* DAY LABEL */}
           <View
-            key={i}
             style={{
-              paddingVertical: 10,
-              borderBottomColor: COLORS.card,
-              borderBottomWidth: 1,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: 10,
             }}
           >
-            <Text style={{ color: COLORS.text }}>
-              {textDate}: {value}/{habits.length}
-            </Text>
+            {DAY_LABELS.map((label, i) => (
+              <Text key={i} style={{ color: COLORS.goldLight }}>
+                {label}
+              </Text>
+            ))}
           </View>
-        );
-      })}
-    </ScrollView>
+        </View>
+
+        {/* DETAIL */}
+        <Text
+          style={{
+            color: COLORS.gold,
+            fontSize: 20,
+            fontWeight: "bold",
+            marginTop: 30,
+            marginBottom: 10,
+          }}
+        >
+          Ringkasan Minggu Ini
+        </Text>
+
+        {chartData.map((value, i) => {
+          const today = new Date();
+          const sunday = new Date(today);
+          sunday.setDate(today.getDate() - today.getDay());
+
+          const d = new Date(sunday);
+          d.setDate(sunday.getDate() + i);
+          const dateKey = d.toISOString().split("T")[0];
+
+          const done = Math.round(value * habits.length);
+
+          return (
+            <View
+              key={i}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.card,
+              }}
+            >
+              <Text style={{ color: COLORS.text }}>
+                {dateKey}: {done}/{habits.length}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </SafeAreaView>
   );
 }

@@ -2,12 +2,11 @@ import { View } from "react-native";
 import { COLORS } from "../constants/theme";
 
 type Props = {
-  data: number[]; // 7 data: Sunday → Saturday
-  max: number;
+  data: number[]; // 0.0 – 1.0 (persentase)
 };
 
-export default function BarChart({ data, max }: Props) {
-  const todayIndex = new Date().getDay(); // 0 = Sunday, 6 = Saturday
+export default function BarChart({ data }: Props) {
+  const todayIndex = new Date().getDay(); // 0 = Sunday
 
   return (
     <View
@@ -18,8 +17,8 @@ export default function BarChart({ data, max }: Props) {
         alignItems: "flex-end",
       }}
     >
-      {data.map((v: number, i: number) => {
-        const height = max === 0 ? 0 : (v / max) * 100;
+      {data.map((v, i) => {
+        const height = Math.max(0, Math.min(1, v)) * 100; 
         const isToday = i === todayIndex;
 
         return (
@@ -35,17 +34,16 @@ export default function BarChart({ data, max }: Props) {
                 borderColor: isToday ? COLORS.gold : COLORS.gold + "55",
                 justifyContent: "flex-end",
 
-                //Highlight hari ini
+                // Highlight hari ini
                 shadowColor: isToday ? COLORS.gold : "transparent",
                 shadowOpacity: isToday ? 0.9 : 0,
                 shadowRadius: isToday ? 10 : 0,
-                shadowOffset: { width: 0, height: 0 },
                 elevation: isToday ? 10 : 0,
               }}
             >
               <View
                 style={{
-                  height,
+                  height: `${height}%`,
                   backgroundColor: isToday ? COLORS.gold : COLORS.gold + "99",
                   width: "100%",
                 }}
